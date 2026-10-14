@@ -100,10 +100,6 @@ async function handlePost(req) {
 }
 
 export default async (req) => {
-  const url = new URL(req.url);
-  if (url.searchParams.get("_diag") === "1") {
-    return Response.json({ hasAdminToken: typeof process.env.ADMIN_TOKEN === "string" });
-  }
   if (req.method === "GET") return handleGet(req);
   if (req.method === "POST") return handlePost(req);
   return new Response("Method not allowed", { status: 405 });
