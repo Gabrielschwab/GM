@@ -27,6 +27,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Karla:wght@400;500;700&family=Space+Mono&display=swap" rel="stylesheet">
 
 <link rel="stylesheet" href="assets/css/styles.css">
+<script src="https://identity.netlify.com/v1/netlify-identity-widget.js" defer></script>
 
 <script type="application/ld+json">
 {
@@ -216,10 +217,23 @@
       </div>
 
       <div class="booking-widget reveal">
+        <div class="booking-login">
+          <button class="btn btn-ghost" id="bk-google" type="button">
+            <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="#EA4335" d="M12 10.2v3.9h5.5c-.24 1.3-1.73 3.8-5.5 3.8-3.3 0-6-2.7-6-6.1s2.7-6.1 6-6.1c1.9 0 3.15.8 3.88 1.5l2.65-2.55C16.9 3 14.7 2 12 2 6.98 2 2.9 6.1 2.9 11.1S6.98 20.2 12 20.2c6.1 0 9.3-4.3 9.3-8.1 0-.55-.06-.95-.13-1.9z"/></svg>
+            Entrar com Google
+          </button>
+          <span class="booking-login-status" id="bk-login-status" hidden></span>
+        </div>
+
         <div class="booking-grid">
           <div>
             <label for="bk-service">Serviço</label>
             <select id="bk-service"><option value="">Carregando serviços...</option></select>
+          </div>
+
+          <div>
+            <label for="bk-staff">Profissional</label>
+            <select id="bk-staff"><option value="">Qualquer profissional disponível</option></select>
           </div>
 
           <div class="booking-row">

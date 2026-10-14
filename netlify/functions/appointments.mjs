@@ -17,15 +17,21 @@ async function handleGet(req) {
   const rows = from
     ? await db.sql`
         SELECT a.id, a.customer_name, a.customer_phone, a.starts_at, a.ends_at, a.status, a.notes,
-               s.name AS service_name, s.category AS service_category
-        FROM appointments a JOIN services s ON s.id = a.service_id
+               s.name AS service_name, s.category AS service_category,
+               st.name AS staff_name
+        FROM appointments a
+        JOIN services s ON s.id = a.service_id
+        LEFT JOIN staff st ON st.id = a.staff_id
         WHERE a.starts_at >= ${from} AND a.status != 'cancelled'
         ORDER BY a.starts_at ASC
       `
     : await db.sql`
         SELECT a.id, a.customer_name, a.customer_phone, a.starts_at, a.ends_at, a.status, a.notes,
-               s.name AS service_name, s.category AS service_category
-        FROM appointments a JOIN services s ON s.id = a.service_id
+               s.name AS service_name, s.category AS service_category,
+               st.name AS staff_name
+        FROM appointments a
+        JOIN services s ON s.id = a.service_id
+        LEFT JOIN staff st ON st.id = a.staff_id
         WHERE a.status != 'cancelled'
         ORDER BY a.starts_at ASC
       `;
@@ -41,8 +47,10 @@ async function handlePost(req) {
   }
 
   const serviceId = Number(body.service_id);
+  const requestedStaffId = body.staff_id ? Number(body.staff_id) : null;
   const customerName = String(body.customer_name || "").trim();
   const customerPhone = String(body.customer_phone || "").trim();
+  const customerEmail = body.customer_email ? String(body.customer_email).trim() : null;
   const startsAtRaw = body.starts_at;
 
   if (!serviceId || !customerName || !customerPhone || !startsAtRaw) {
@@ -71,22 +79,40 @@ async function handlePost(req) {
 
     const endsAt = new Date(startsAt.getTime() + service.duration_minutes * 60 * 1000);
 
-    const overlapRes = await client.query(
-      `SELECT id FROM appointments
-       WHERE status != 'cancelled' AND starts_at < $1 AND ends_at > $2
-       FOR UPDATE`,
-      [endsAt.toISOString(), startsAt.toISOString()]
-    );
-    if (overlapRes.rows.length > 0) {
+    // Candidatos: o profissional pedido, ou todos os ativos (atribuição automática) se "qualquer".
+    const candidatesRes = requestedStaffId
+      ? await client.query("SELECT id FROM staff WHERE id = $1 AND active = true", [requestedStaffId])
+      : await client.query("SELECT id FROM staff WHERE active = true ORDER BY sort_order ASC");
+    const candidateIds = candidatesRes.rows.map((r) => r.id);
+    if (!candidateIds.length) {
+      await client.query("ROLLBACK");
+      return Response.json({ error: "Nenhum profissional disponível." }, { status: 404 });
+    }
+
+    let assignedStaffId = null;
+    for (const staffId of candidateIds) {
+      const overlapRes = await client.query(
+        `SELECT id FROM appointments
+         WHERE status != 'cancelled' AND staff_id = $1 AND starts_at < $2 AND ends_at > $3
+         FOR UPDATE`,
+        [staffId, endsAt.toISOString(), startsAt.toISOString()]
+      );
+      if (overlapRes.rows.length === 0) {
+        assignedStaffId = staffId;
+        break;
+      }
+    }
+
+    if (!assignedStaffId) {
       await client.query("ROLLBACK");
       return Response.json({ error: "Esse horário acabou de ser ocupado. Escolha outro." }, { status: 409 });
     }
 
     const insertRes = await client.query(
-      `INSERT INTO appointments (service_id, customer_name, customer_phone, starts_at, ends_at)
-       VALUES ($1, $2, $3, $4, $5)
-       RETURNING id, starts_at, ends_at`,
-      [serviceId, customerName, customerPhone, startsAt.toISOString(), endsAt.toISOString()]
+      `INSERT INTO appointments (service_id, staff_id, customer_name, customer_phone, notes, starts_at, ends_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       RETURNING id, staff_id, starts_at, ends_at`,
+      [serviceId, assignedStaffId, customerName, customerPhone, customerEmail ? `e-mail: ${customerEmail}` : null, startsAt.toISOString(), endsAt.toISOString()]
     );
 
     await client.query("COMMIT");

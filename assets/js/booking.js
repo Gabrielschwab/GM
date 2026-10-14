@@ -2,6 +2,7 @@
   'use strict';
 
   var serviceSel = document.getElementById('bk-service');
+  var staffSel = document.getElementById('bk-staff');
   var dateInput = document.getElementById('bk-date');
   var timesWrap = document.getElementById('bk-times');
   var timesHint = document.getElementById('bk-times-hint');
@@ -9,11 +10,40 @@
   var telInput = document.getElementById('bk-telefone');
   var confirmBtn = document.getElementById('bk-confirmar');
   var feedback = document.getElementById('bk-feedback');
+  var googleBtn = document.getElementById('bk-google');
+  var loginStatus = document.getElementById('bk-login-status');
 
   if (!serviceSel) return; // seção não presente nesta página
 
   var services = [];
   var selectedTime = null; // ISO string
+  var customerEmail = null;
+
+  function setupIdentity() {
+    if (!window.netlifyIdentity || !googleBtn) return;
+    var identity = window.netlifyIdentity;
+
+    function onLogin(user) {
+      var meta = (user && user.user_metadata) || {};
+      if (meta.full_name) nomeInput.value = meta.full_name;
+      customerEmail = (user && user.email) || null;
+      googleBtn.hidden = true;
+      loginStatus.hidden = false;
+      loginStatus.textContent = 'Entrou como ' + (customerEmail || meta.full_name || 'usuário') + '.';
+      updateConfirmState();
+    }
+
+    identity.on('init', function (user) { if (user) onLogin(user); });
+    identity.on('login', function (user) { onLogin(user); identity.close(); });
+    identity.on('logout', function () {
+      customerEmail = null;
+      googleBtn.hidden = false;
+      loginStatus.hidden = true;
+    });
+
+    googleBtn.addEventListener('click', function () { identity.open('login'); });
+    identity.init();
+  }
 
   function todayInSP() {
     var now = new Date();
@@ -57,6 +87,22 @@
       });
   }
 
+  function loadStaff() {
+    fetch('/api/staff')
+      .then(function (r) { if (!r.ok) throw new Error(); return r.json(); })
+      .then(function (data) {
+        var staff = data.staff || [];
+        var html = '<option value="">Qualquer profissional disponível</option>';
+        staff.forEach(function (s) {
+          html += '<option value="' + s.id + '">' + s.name + (s.role ? ' — ' + s.role : '') + '</option>';
+        });
+        staffSel.innerHTML = html;
+      })
+      .catch(function () {
+        staffSel.innerHTML = '<option value="">Qualquer profissional disponível</option>';
+      });
+  }
+
   function resetTimes(message) {
     selectedTime = null;
     timesWrap.innerHTML = '';
@@ -75,7 +121,9 @@
     resetTimes('Carregando horários...');
     timesHint.hidden = false;
 
-    fetch('/api/availability?date=' + encodeURIComponent(date) + '&service_id=' + encodeURIComponent(serviceId))
+    var staffId = staffSel.value;
+    var staffQs = staffId ? '&staff_id=' + encodeURIComponent(staffId) : '';
+    fetch('/api/availability?date=' + encodeURIComponent(date) + '&service_id=' + encodeURIComponent(serviceId) + staffQs)
       .then(function (r) { if (!r.ok) throw new Error(); return r.json(); })
       .then(function (data) {
         var slots = data.slots || [];
@@ -122,8 +170,10 @@
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         service_id: Number(serviceSel.value),
+        staff_id: staffSel.value ? Number(staffSel.value) : null,
         customer_name: nomeInput.value.trim(),
         customer_phone: telInput.value.trim(),
+        customer_email: customerEmail,
         starts_at: selectedTime,
       }),
     })
@@ -145,6 +195,7 @@
         feedback.textContent = 'Agendado! ' + quando + '. Se precisar remarcar, chama no WhatsApp.';
         resetTimes('Escolha o serviço e a data primeiro.');
         serviceSel.value = '';
+        staffSel.value = '';
         nomeInput.value = '';
         telInput.value = '';
       })
@@ -161,11 +212,14 @@
   dateInput.max = maxDate.toISOString().slice(0, 10);
 
   serviceSel.addEventListener('change', loadAvailability);
+  staffSel.addEventListener('change', loadAvailability);
   dateInput.addEventListener('change', loadAvailability);
   nomeInput.addEventListener('input', updateConfirmState);
   telInput.addEventListener('input', updateConfirmState);
   confirmBtn.addEventListener('click', confirmBooking);
 
   loadServices();
+  loadStaff();
+  setupIdentity();
   resetTimes('Escolha o serviço e a data primeiro.');
 })();

@@ -219,6 +219,10 @@ section + section{ border-top: 1px solid var(--line-2); }
   max-width: 720px; background: var(--bg-3); border: 1px solid var(--line);
   border-radius: var(--radius); padding: clamp(1.5rem, 4vw, 2.5rem);
 }
+.booking-login{ display: flex; align-items: center; gap: var(--s-3); margin-bottom: var(--s-4); padding-bottom: var(--s-4); border-bottom: 1px solid var(--line-2); flex-wrap: wrap; }
+.booking-login .btn{ padding: .7rem 1.2rem; font-size: .82rem; gap: .5rem; }
+.booking-login-status{ font-size: .85rem; color: var(--ink-2); }
+
 .booking-grid{ display: grid; gap: var(--s-4); }
 .booking-row{ display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-3); }
 @media (max-width: 560px){ .booking-row{ grid-template-columns: 1fr; } }

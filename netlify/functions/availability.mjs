@@ -23,6 +23,8 @@ export default async (req) => {
   const url = new URL(req.url);
   const date = url.searchParams.get("date");
   const serviceId = Number(url.searchParams.get("service_id"));
+  const staffIdParam = url.searchParams.get("staff_id");
+  const staffId = staffIdParam ? Number(staffIdParam) : null;
 
   if (!isValidDate(date) || !serviceId) {
     return Response.json({ error: "Parâmetros inválidos: informe date=YYYY-MM-DD e service_id." }, { status: 400 });
@@ -34,6 +36,14 @@ export default async (req) => {
     return Response.json({ error: "Serviço não encontrado." }, { status: 404 });
   }
 
+  const activeStaff = staffId
+    ? await db.sql`SELECT id FROM staff WHERE id = ${staffId} AND active = true`
+    : await db.sql`SELECT id FROM staff WHERE active = true ORDER BY sort_order ASC`;
+  if (!activeStaff.length) {
+    return Response.json({ error: "Nenhum profissional disponível." }, { status: 404 });
+  }
+  const staffIds = activeStaff.map((s) => s.id);
+
   const dayStart = new Date(`${date}T00:00:00${TZ_OFFSET}`);
   const weekday = dayStart.getUTCDay();
   const hours = BUSINESS_HOURS[weekday];
@@ -43,9 +53,13 @@ export default async (req) => {
 
   const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
   const existing = await db.sql`
-    SELECT starts_at, ends_at FROM appointments
-    WHERE status != 'cancelled' AND starts_at >= ${dayStart.toISOString()} AND starts_at < ${dayEnd.toISOString()}
+    SELECT staff_id, starts_at, ends_at FROM appointments
+    WHERE status != 'cancelled' AND staff_id = ANY(${staffIds}) AND starts_at >= ${dayStart.toISOString()} AND starts_at < ${dayEnd.toISOString()}
   `;
+  const byStaff = new Map(staffIds.map((id) => [id, []]));
+  existing.forEach((apt) => {
+    if (byStaff.has(apt.staff_id)) byStaff.get(apt.staff_id).push(apt);
+  });
 
   const openDt = new Date(`${date}T${hours.open}:00${TZ_OFFSET}`);
   const closeDt = new Date(`${date}T${hours.close}:00${TZ_OFFSET}`);
@@ -59,10 +73,12 @@ export default async (req) => {
     const slotEnd = new Date(t + durationMs);
     if (slotStart <= now) continue; // não oferece horário no passado
 
-    const overlaps = existing.some(
-      (apt) => slotStart < new Date(apt.ends_at) && slotEnd > new Date(apt.starts_at)
-    );
-    if (!overlaps) slots.push(slotStart.toISOString());
+    // disponível se PELO MENOS UM profissional (dentre os considerados) está livre nesse horário
+    const someStaffFree = staffIds.some((id) => {
+      const apts = byStaff.get(id);
+      return !apts.some((apt) => slotStart < new Date(apt.ends_at) && slotEnd > new Date(apt.starts_at));
+    });
+    if (someStaffFree) slots.push(slotStart.toISOString());
   }
 
   return Response.json({ slots, duration_minutes: service.duration_minutes });
