@@ -1,4 +1,5 @@
 import { getDatabase } from "@netlify/database";
+import { createAppointment } from "./_lib/booking.mjs";
 
 function isAuthorized(req) {
   const token = process.env.ADMIN_TOKEN;
@@ -46,84 +47,17 @@ async function handlePost(req) {
     return Response.json({ error: "JSON inválido." }, { status: 400 });
   }
 
-  const serviceId = Number(body.service_id);
-  const requestedStaffId = body.staff_id ? Number(body.staff_id) : null;
-  const customerName = String(body.customer_name || "").trim();
-  const customerPhone = String(body.customer_phone || "").trim();
-  const customerEmail = body.customer_email ? String(body.customer_email).trim() : null;
-  const startsAtRaw = body.starts_at;
-
-  if (!serviceId || !customerName || !customerPhone || !startsAtRaw) {
-    return Response.json({ error: "Preencha serviço, nome, telefone e horário." }, { status: 400 });
-  }
-
-  const startsAt = new Date(startsAtRaw);
-  if (Number.isNaN(startsAt.getTime()) || startsAt.getTime() <= Date.now()) {
-    return Response.json({ error: "Horário inválido ou no passado." }, { status: 400 });
-  }
-
   const db = getDatabase();
-  const client = await db.pool.connect();
-  try {
-    await client.query("BEGIN");
-
-    const serviceRes = await client.query(
-      "SELECT id, duration_minutes, required_staff_id FROM services WHERE id = $1 AND active = true",
-      [serviceId]
-    );
-    const service = serviceRes.rows[0];
-    if (!service) {
-      await client.query("ROLLBACK");
-      return Response.json({ error: "Serviço não encontrado." }, { status: 404 });
-    }
-
-    const endsAt = new Date(startsAt.getTime() + service.duration_minutes * 60 * 1000);
-
-    // Serviço com profissional obrigatório (ex.: "... com Glaycon") ignora o staff_id pedido.
-    const effectiveStaffId = service.required_staff_id || requestedStaffId;
-    const candidatesRes = effectiveStaffId
-      ? await client.query("SELECT id FROM staff WHERE id = $1 AND active = true", [effectiveStaffId])
-      : await client.query("SELECT id FROM staff WHERE active = true ORDER BY sort_order ASC");
-    const candidateIds = candidatesRes.rows.map((r) => r.id);
-    if (!candidateIds.length) {
-      await client.query("ROLLBACK");
-      return Response.json({ error: "Nenhum profissional disponível." }, { status: 404 });
-    }
-
-    let assignedStaffId = null;
-    for (const staffId of candidateIds) {
-      const overlapRes = await client.query(
-        `SELECT id FROM appointments
-         WHERE status != 'cancelled' AND staff_id = $1 AND starts_at < $2 AND ends_at > $3
-         FOR UPDATE`,
-        [staffId, endsAt.toISOString(), startsAt.toISOString()]
-      );
-      if (overlapRes.rows.length === 0) {
-        assignedStaffId = staffId;
-        break;
-      }
-    }
-
-    if (!assignedStaffId) {
-      await client.query("ROLLBACK");
-      return Response.json({ error: "Esse horário acabou de ser ocupado. Escolha outro." }, { status: 409 });
-    }
-
-    const insertRes = await client.query(
-      `INSERT INTO appointments (service_id, staff_id, customer_name, customer_phone, notes, starts_at, ends_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
-       RETURNING id, staff_id, starts_at, ends_at`,
-      [serviceId, assignedStaffId, customerName, customerPhone, customerEmail ? `e-mail: ${customerEmail}` : null, startsAt.toISOString(), endsAt.toISOString()]
-    );
-
-    await client.query("COMMIT");
-    return Response.json({ appointment: insertRes.rows[0] }, { status: 201 });
-  } catch (err) {
-    await client.query("ROLLBACK");
-    return Response.json({ error: "Erro ao criar agendamento." }, { status: 500 });
-  } finally {
-    client.release();
-  }
+  const result = await createAppointment(db, {
+    serviceId: Number(body.service_id),
+    staffId: body.staff_id ? Number(body.staff_id) : null,
+    customerName: String(body.customer_name || "").trim(),
+    customerPhone: String(body.customer_phone || "").trim(),
+    customerEmail: body.customer_email ? String(body.customer_email).trim() : null,
+    startsAtIso: body.starts_at,
+  });
+  if (result.error) return Response.json({ error: result.error }, { status: result.status || 400 });
+  return Response.json({ appointment: result.appointment }, { status: 201 });
 }
 
 async function handleDelete(req) {
