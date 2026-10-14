@@ -3,7 +3,8 @@ import { getDatabase } from "@netlify/database";
 export default async () => {
   const db = getDatabase();
   const services = await db.sql`
-    SELECT id, category, name, description, duration_minutes, price_cents, sort_order
+    SELECT id, category, name, description, duration_minutes, price_cents, sort_order,
+           required_staff_id, price_is_from
     FROM services
     WHERE active = true
     ORDER BY sort_order ASC

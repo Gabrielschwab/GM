@@ -68,7 +68,7 @@ async function handlePost(req) {
     await client.query("BEGIN");
 
     const serviceRes = await client.query(
-      "SELECT id, duration_minutes FROM services WHERE id = $1 AND active = true",
+      "SELECT id, duration_minutes, required_staff_id FROM services WHERE id = $1 AND active = true",
       [serviceId]
     );
     const service = serviceRes.rows[0];
@@ -79,9 +79,10 @@ async function handlePost(req) {
 
     const endsAt = new Date(startsAt.getTime() + service.duration_minutes * 60 * 1000);
 
-    // Candidatos: o profissional pedido, ou todos os ativos (atribuição automática) se "qualquer".
-    const candidatesRes = requestedStaffId
-      ? await client.query("SELECT id FROM staff WHERE id = $1 AND active = true", [requestedStaffId])
+    // Serviço com profissional obrigatório (ex.: "... com Glaycon") ignora o staff_id pedido.
+    const effectiveStaffId = service.required_staff_id || requestedStaffId;
+    const candidatesRes = effectiveStaffId
+      ? await client.query("SELECT id FROM staff WHERE id = $1 AND active = true", [effectiveStaffId])
       : await client.query("SELECT id FROM staff WHERE active = true ORDER BY sort_order ASC");
     const candidateIds = candidatesRes.rows.map((r) => r.id);
     if (!candidateIds.length) {

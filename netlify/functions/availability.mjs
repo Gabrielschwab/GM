@@ -31,13 +31,16 @@ export default async (req) => {
   }
 
   const db = getDatabase();
-  const [service] = await db.sql`SELECT id, duration_minutes FROM services WHERE id = ${serviceId} AND active = true`;
+  const [service] = await db.sql`SELECT id, duration_minutes, required_staff_id FROM services WHERE id = ${serviceId} AND active = true`;
   if (!service) {
     return Response.json({ error: "Serviço não encontrado." }, { status: 404 });
   }
 
-  const activeStaff = staffId
-    ? await db.sql`SELECT id FROM staff WHERE id = ${staffId} AND active = true`
+  // Serviço com profissional obrigatório (ex.: "... com Glaycon") ignora o staff_id pedido.
+  const effectiveStaffId = service.required_staff_id || staffId;
+
+  const activeStaff = effectiveStaffId
+    ? await db.sql`SELECT id FROM staff WHERE id = ${effectiveStaffId} AND active = true`
     : await db.sql`SELECT id FROM staff WHERE active = true ORDER BY sort_order ASC`;
   if (!activeStaff.length) {
     return Response.json({ error: "Nenhum profissional disponível." }, { status: 404 });

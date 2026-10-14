@@ -53,9 +53,10 @@
     return map.year + '-' + map.month + '-' + map.day;
   }
 
-  function centsToBRL(cents) {
+  function centsToBRL(cents, isFrom) {
     if (cents == null) return 'a combinar';
-    return (cents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    var v = (cents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    return isFrom ? 'a partir de ' + v : v;
   }
 
   function loadServices() {
@@ -76,7 +77,7 @@
         Object.keys(byCategory).forEach(function (cat) {
           html += '<optgroup label="' + cat + '">';
           byCategory[cat].forEach(function (s) {
-            html += '<option value="' + s.id + '">' + s.name + ' — ' + centsToBRL(s.price_cents) + '</option>';
+            html += '<option value="' + s.id + '">' + s.name + ' — ' + centsToBRL(s.price_cents, s.price_is_from) + '</option>';
           });
           html += '</optgroup>';
         });
@@ -109,6 +110,16 @@
     timesHint.textContent = message || '';
     timesHint.hidden = !message;
     updateConfirmState();
+  }
+
+  function applyServiceStaffLock() {
+    var service = services.filter(function (s) { return String(s.id) === serviceSel.value; })[0];
+    if (service && service.required_staff_id) {
+      staffSel.value = String(service.required_staff_id);
+      staffSel.disabled = true;
+    } else {
+      staffSel.disabled = false;
+    }
   }
 
   function loadAvailability() {
@@ -196,6 +207,7 @@
         resetTimes('Escolha o serviço e a data primeiro.');
         serviceSel.value = '';
         staffSel.value = '';
+        staffSel.disabled = false;
         nomeInput.value = '';
         telInput.value = '';
       })
@@ -211,7 +223,7 @@
   maxDate.setDate(maxDate.getDate() + 30);
   dateInput.max = maxDate.toISOString().slice(0, 10);
 
-  serviceSel.addEventListener('change', loadAvailability);
+  serviceSel.addEventListener('change', function () { applyServiceStaffLock(); loadAvailability(); });
   staffSel.addEventListener('change', loadAvailability);
   dateInput.addEventListener('change', loadAvailability);
   nomeInput.addEventListener('input', updateConfirmState);
