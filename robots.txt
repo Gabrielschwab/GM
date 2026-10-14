@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://glaycommarlonsbarbearia.com.br/sitemap.xml

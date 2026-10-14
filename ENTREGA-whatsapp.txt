@@ -1,0 +1,9 @@
+Fala! O site da Glaycom Marlons Barbearia tá pronto.
+
+Deixei tudo certo pra funcionar bem no celular, com o botão de WhatsApp já apontando pro número da
+barbearia. Só falta trocar os preços, o endereço e as fotos pelas definitivas (tem um checklist no
+README da pasta).
+
+Segue a pasta pra gente publicar: [cole aqui o link depois de subir no GitHub Pages/Netlify]
+
+Dá uma olhada e me fala o que achou — ajusto o que precisar.

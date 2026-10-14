@@ -1,0 +1,9 @@
+{
+  "name": "Glaycom Marlons Barbearia",
+  "short_name": "Glaycom Marlons",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#15120F",
+  "theme_color": "#15120F",
+  "lang": "pt-BR"
+}
