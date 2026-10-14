@@ -1,13 +1,25 @@
 # Agendamento online — guia rápido
 
+## Configuração única (fazer antes de usar o /admin.html)
+Preciso que você cadastre a senha de acesso do admin manualmente no painel do Netlify — eu tentei fazer
+isso pelo conector automático, mas a variável não ficou salva de verdade (provavelmente por limitação do
+plano gratuito da equipe) e não quis insistir às cegas. É rápido:
+
+1. Acesse https://app.netlify.com/projects/glaycom-marlons-barbearia/configuration/env
+2. Clique em **Add a variable** → **Add a single variable**
+3. Key: `ADMIN_TOKEN`
+4. Value: o token que foi enviado separadamente no chat (não está neste arquivo de propósito — veja
+   abaixo)
+5. Salve, depois publique de novo (`netlify deploy --prod`, ou peça pra eu publicar) para a variável
+   valer.
+
+**Sobre o token:** não fica neste arquivo porque este repositório pode ir para o GitHub, e qualquer um
+com acesso a ele poderia ver nome e telefone dos seus clientes. Guarde o token que foi enviado
+separadamente como uma senha. Se perder ou achar que vazou, me avise que eu gero um novo.
+
 ## Ver os agendamentos
 Acesse `/admin.html` no site publicado (ex.: `https://glaycom-marlons-barbearia.netlify.app/admin.html`)
 e cole o token de acesso quando pedir.
-
-**O token não fica neste arquivo de propósito** (este repositório pode ir para o GitHub, e qualquer um
-com acesso a ele poderia ver nome e telefone dos seus clientes). Guarde o token que foi enviado
-separadamente como uma senha. Se perder ou achar que vazou, me avise que eu gero um novo e atualizo a
-variável de ambiente no Netlify (`ADMIN_TOKEN`) — o antigo para de funcionar na hora.
 
 ## Atualizar os preços dos serviços
 Os preços ainda estão como "a combinar" (`NULL` no banco) porque não tínhamos os valores reais. Pra

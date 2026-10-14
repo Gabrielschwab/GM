@@ -1,23 +1,26 @@
 # Site — Glaycom Marlons Barbearia
 
-Site institucional de uma página, pronto pra publicar. Não precisa instalar nada nem rodar build —
-é só HTML, CSS e JS puro. Para ver localmente, dê duplo clique em `index.html`.
+Site institucional **com agendamento online real**: Postgres gerenciado pelo Netlify guarda serviços e
+agendamentos, três Netlify Functions servem a API (`/api/services`, `/api/availability`,
+`/api/appointments`), e `/admin.html` mostra a agenda pra barbearia. Não é mais 100% zero-config — precisa
+do Netlify pra rodar (o banco e as funções não funcionam em GitHub Pages/Netlify Drop simples).
 
-## Como publicar (escolha uma opção)
+**No ar em:** https://glaycom-marlons-barbearia.netlify.app
 
-### Opção 1 — GitHub Pages (grátis, com domínio `.github.io`)
-1. Crie um repositório no GitHub e suba esta pasta inteira (o `index.html` precisa ficar na raiz do repositório).
-2. No repositório: **Settings → Pages → Branch**: selecione `main` e a pasta `/root`, salve.
-3. Em alguns minutos o site estará no ar em `https://seu-usuario.github.io/nome-do-repositorio/`.
+## Publicar atualizações
+O projeto já está conectado à sua conta Netlify (site `glaycom-marlons-barbearia`). Depois de editar e
+commitar, publique com a Netlify CLI:
+```bash
+npm install -g netlify-cli
+netlify login
+netlify link   # na primeira vez, escolha o site glaycom-marlons-barbearia
+netlify deploy --prod
+```
+Isso aplica migrações pendentes do banco automaticamente antes de publicar.
 
-### Opção 2 — Netlify Drop (mais rápido, sem precisar de conta)
-1. Acesse [app.netlify.com/drop](https://app.netlify.com/drop).
-2. Arraste a pasta `glaycom-marlons-barbearia` inteira para a área indicada.
-3. Pronto — você recebe um link público na hora. Dá pra criar conta depois para trocar o domínio.
-
-### Opção 3 — Vercel
-Drag-and-drop também funciona, mas o fluxo recomendado da Vercel é via Git/CLI — para algo simples,
-a Opção 2 (Netlify Drop) costuma ser mais direta.
+## Configuração pendente no painel do Netlify
+A variável de ambiente `ADMIN_TOKEN` (protege o `/admin.html`) precisa ser configurada manualmente —
+veja `ADMIN.md`.
 
 ## Checklist do que trocar (procure por `<!-- TROCAR -->` no código)
 
@@ -45,15 +48,22 @@ a Opção 2 (Netlify Drop) costuma ser mais direta.
 
 ```
 glaycom-marlons-barbearia/
-  index.html                     # página principal
+  index.html                     # página principal (inclui a seção "Agendar online")
+  admin.html                     # painel interno — ver agendamentos (protegido por token)
   404.html
   politica-de-privacidade.html
   assets/css/styles.css
   assets/js/main.js
+  assets/js/booking.js           # lógica do widget de agendamento
   img/                           # fotos (placeholders do Pexels)
+  netlify/functions/             # API: services.mjs, availability.mjs, appointments.mjs
+  netlify/database/migrations/   # schema do banco (serviços + agendamentos)
+  netlify.toml
+  package.json
   site.webmanifest
   robots.txt
   sitemap.xml
+  ADMIN.md                       # como ver agendamentos, mudar preços e horários
 ```
 
 ## Quer mudar algo depois?
