@@ -22,6 +22,8 @@
   td{ color: var(--ink); }
   .status-msg{ margin-top: 1rem; color: var(--ink-2); font-size: .9rem; }
   .logout{ font-size: .82rem; color: var(--ink-2); text-decoration: underline; margin-bottom: 1.5rem; display: inline-block; }
+  .cancel-btn{ font-size: .78rem; color: #E08A7A; border: 1px solid rgba(224,138,122,.4); border-radius: var(--radius); padding: .35rem .7rem; }
+  .cancel-btn:hover{ background: rgba(224,138,122,.12); }
 </style>
 </head>
 <body>
@@ -56,15 +58,28 @@
     return d.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
   }
 
+  var currentToken = null;
+
   function render(appointments){
     if (!appointments.length){ listaEl.innerHTML = '<p class="status-msg">Nenhum agendamento futuro.</p>'; return; }
     var rows = appointments.map(function(a){
-      return '<tr><td>' + fmt(a.starts_at) + '</td><td>' + a.service_category + ' — ' + a.service_name + '</td><td>' + a.customer_name + '</td><td>' + a.customer_phone + '</td></tr>';
+      return '<tr><td>' + fmt(a.starts_at) + '</td><td>' + a.service_category + ' — ' + a.service_name + '</td>' +
+        '<td>' + (a.staff_name || '—') + '</td><td>' + a.customer_name + '</td><td>' + a.customer_phone + '</td>' +
+        '<td><button type="button" class="cancel-btn" data-id="' + a.id + '">Cancelar</button></td></tr>';
     }).join('');
-    listaEl.innerHTML = '<table><thead><tr><th>Quando</th><th>Serviço</th><th>Cliente</th><th>Telefone</th></tr></thead><tbody>' + rows + '</tbody></table>';
+    listaEl.innerHTML = '<table><thead><tr><th>Quando</th><th>Serviço</th><th>Profissional</th><th>Cliente</th><th>Telefone</th><th></th></tr></thead><tbody>' + rows + '</tbody></table>';
+    listaEl.querySelectorAll('.cancel-btn').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        if (!confirm('Cancelar este agendamento?')) return;
+        fetch('/api/appointments?id=' + btn.getAttribute('data-id'), { method: 'DELETE', headers: { Authorization: 'Bearer ' + currentToken } })
+          .then(function(r){ if(!r.ok) throw new Error(); return load(currentToken); })
+          .catch(function(){ statusEl.textContent = 'Erro ao cancelar.'; });
+      });
+    });
   }
 
   function load(token){
+    currentToken = token;
     statusEl.textContent = 'Carregando...';
     var from = new Date(Date.now() - 24*60*60*1000).toISOString();
     fetch('/api/appointments?from=' + encodeURIComponent(from), { headers: { Authorization: 'Bearer ' + token } })

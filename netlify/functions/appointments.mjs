@@ -126,9 +126,27 @@ async function handlePost(req) {
   }
 }
 
+async function handleDelete(req) {
+  if (!isAuthorized(req)) {
+    return Response.json({ error: "Não autorizado." }, { status: 401 });
+  }
+  const url = new URL(req.url);
+  const id = Number(url.searchParams.get("id"));
+  if (!id) {
+    return Response.json({ error: "Informe o id do agendamento." }, { status: 400 });
+  }
+  const db = getDatabase();
+  const rows = await db.sql`UPDATE appointments SET status = 'cancelled' WHERE id = ${id} RETURNING id`;
+  if (!rows.length) {
+    return Response.json({ error: "Agendamento não encontrado." }, { status: 404 });
+  }
+  return Response.json({ cancelled: id });
+}
+
 export default async (req) => {
   if (req.method === "GET") return handleGet(req);
   if (req.method === "POST") return handlePost(req);
+  if (req.method === "DELETE") return handleDelete(req);
   return new Response("Method not allowed", { status: 405 });
 };
 
