@@ -26,12 +26,8 @@ a Opção 2 (Netlify Drop) costuma ser mais direta.
       tiver a arte final. Hoje é um emblema "GM" provisório.
 - [ ] **Preços dos serviços**: todos aparecem como `R$ --` na seção "O que fazemos" — substitua pelos
       valores reais de cada corte/serviço.
-- [ ] **Endereço completo**: aparece como placeholder na seção Localização e no rodapé — troque pela
-      rua/número reais, e atualize o endereço dentro do bloco `JSON-LD` no `<head>` do `index.html`.
-- [ ] **Horário de funcionamento**: os dias/horários na seção Localização são um exemplo — confirme os
-      reais.
-- [ ] **Instagram**: troque os links `@trocar_instagram` pelo perfil real (cabeçalho, seção de
-      localização e rodapé).
+- [ ] **Horário de funcionamento**: a tabela na seção Localização ainda é um exemplo (só confirmamos que
+      fecha às 19h) — confirme os dias e horários completos da semana, incluindo domingo.
 - [ ] **Depoimentos**: os três depoimentos são exemplos de estrutura — troque pelos depoimentos reais de
       clientes (com autorização deles para usar nome/bairro).
 - [ ] **Razão social e CNPJ**: no rodapé, troque pelos dados oficiais da empresa.

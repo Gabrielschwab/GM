@@ -102,7 +102,7 @@
       var tel = form.querySelector('#f-telefone').value;
       var msg = form.querySelector('#f-mensagem').value;
       var text = 'Olá! Me chamo ' + nome + ' (tel: ' + tel + '). ' + msg;
-      var url = 'https://wa.me/5531973155293?text=' + encodeURIComponent(text);
+      var url = 'https://wa.me/5531975153356?text=' + encodeURIComponent(text);
       window.open(url, '_blank', 'noopener');
       var status = document.getElementById('form-status');
       if (status) status.textContent = 'Abrindo o WhatsApp para enviar sua mensagem...';
