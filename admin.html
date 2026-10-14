@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agendamentos | Glaycom Marlons Barbearia</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%23161310' stroke='%23C7A456' stroke-width='2'/%3E%3Ctext x='32' y='41' font-family='Georgia,serif' font-size='24' font-weight='700' fill='%23C7A456' text-anchor='middle'%3EGM%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Karla:wght@400;500;700&family=Space+Mono&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/styles.css">
+<style>
+  .admin-wrap{ max-width: 960px; margin-inline: auto; padding: clamp(4rem,8vw,6rem) 1.5rem 6rem; }
+  .admin-wrap h1{ font-size: var(--t-3); margin-bottom: .5rem; }
+  .admin-wrap p.sub{ color: var(--ink-2); margin-bottom: 2rem; }
+  .login-box{ max-width: 360px; display: flex; flex-direction: column; gap: 1rem; }
+  .login-box input{ background: var(--bg-2); border: 1px solid var(--line); border-radius: var(--radius); padding: .9rem 1rem; color: var(--ink); }
+  table{ width: 100%; border-collapse: collapse; margin-top: 1rem; }
+  th, td{ text-align: left; padding: .7rem .8rem; border-bottom: 1px solid var(--line-2); font-size: .92rem; }
+  th{ color: var(--gold); font-family: var(--font-display); text-transform: uppercase; font-size: .78rem; letter-spacing: .05em; }
+  td{ color: var(--ink); }
+  .status-msg{ margin-top: 1rem; color: var(--ink-2); font-size: .9rem; }
+  .logout{ font-size: .82rem; color: var(--ink-2); text-decoration: underline; margin-bottom: 1.5rem; display: inline-block; }
+</style>
+</head>
+<body>
+<main class="admin-wrap">
+  <p class="eyebrow">Área interna</p>
+  <h1>Próximos agendamentos</h1>
+  <p class="sub">Essa página não aparece em buscadores e não está linkada no site público. Guarde o link e o token com cuidado.</p>
+
+  <div id="login" class="login-box">
+    <label for="token" style="font-size:.85rem;color:var(--ink-2);">Token de acesso</label>
+    <input type="password" id="token" placeholder="Cole o token de admin">
+    <button class="btn btn-primary" id="entrar" type="button" style="width:fit-content;">Entrar</button>
+  </div>
+
+  <div id="painel" hidden>
+    <a href="#" class="logout" id="sair">Sair</a>
+    <div id="lista"></div>
+    <p class="status-msg" id="status"></p>
+  </div>
+</main>
+
+<script>
+(function(){
+  var loginBox = document.getElementById('login');
+  var painel = document.getElementById('painel');
+  var tokenInput = document.getElementById('token');
+  var statusEl = document.getElementById('status');
+  var listaEl = document.getElementById('lista');
+
+  function fmt(iso){
+    var d = new Date(iso);
+    return d.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+  }
+
+  function render(appointments){
+    if (!appointments.length){ listaEl.innerHTML = '<p class="status-msg">Nenhum agendamento futuro.</p>'; return; }
+    var rows = appointments.map(function(a){
+      return '<tr><td>' + fmt(a.starts_at) + '</td><td>' + a.service_category + ' — ' + a.service_name + '</td><td>' + a.customer_name + '</td><td>' + a.customer_phone + '</td></tr>';
+    }).join('');
+    listaEl.innerHTML = '<table><thead><tr><th>Quando</th><th>Serviço</th><th>Cliente</th><th>Telefone</th></tr></thead><tbody>' + rows + '</tbody></table>';
+  }
+
+  function load(token){
+    statusEl.textContent = 'Carregando...';
+    var from = new Date(Date.now() - 24*60*60*1000).toISOString();
+    fetch('/api/appointments?from=' + encodeURIComponent(from), { headers: { Authorization: 'Bearer ' + token } })
+      .then(function(r){
+        if (r.status === 401) throw new Error('Token inválido.');
+        if (!r.ok) throw new Error('Erro ao carregar.');
+        return r.json();
+      })
+      .then(function(data){
+        statusEl.textContent = '';
+        try { localStorage.setItem('admin-token', token); } catch(e){}
+        loginBox.hidden = true;
+        painel.hidden = false;
+        render(data.appointments || []);
+      })
+      .catch(function(err){ statusEl.textContent = err.message; });
+  }
+
+  document.getElementById('entrar').addEventListener('click', function(){
+    var t = tokenInput.value.trim();
+    if (t) load(t);
+  });
+  document.getElementById('sair').addEventListener('click', function(e){
+    e.preventDefault();
+    try { localStorage.removeItem('admin-token'); } catch(err){}
+    location.reload();
+  });
+
+  try {
+    var saved = localStorage.getItem('admin-token');
+    if (saved) load(saved);
+  } catch(e){}
+})();
+</script>
+</body>
+</html>

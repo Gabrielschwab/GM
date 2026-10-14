@@ -213,6 +213,37 @@ section + section{ border-top: 1px solid var(--line-2); }
   .servicos-media{ position: static; aspect-ratio: 16/9; }
 }
 
+/* ---------- Agendar online ---------- */
+.agendar{ background: var(--bg-2); }
+.booking-widget{
+  max-width: 720px; background: var(--bg-3); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: clamp(1.5rem, 4vw, 2.5rem);
+}
+.booking-grid{ display: grid; gap: var(--s-4); }
+.booking-row{ display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-3); }
+@media (max-width: 560px){ .booking-row{ grid-template-columns: 1fr; } }
+
+.booking-widget label{ display: block; font-size: .82rem; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-2); margin-bottom: .4rem; }
+.booking-widget select, .booking-widget input{
+  width: 100%; background: var(--bg-2); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: .85rem 1rem; color: var(--ink); font-size: 1rem; font-family: var(--font-body);
+}
+.booking-widget select:focus-visible, .booking-widget input:focus-visible{ outline: 2px solid var(--gold); outline-offset: 2px; }
+
+.time-grid{ display: flex; flex-wrap: wrap; gap: .6rem; margin-top: .25rem; }
+.time-slot{
+  border: 1px solid var(--line); border-radius: var(--radius); padding: .6rem 1rem;
+  font-family: var(--font-mono); font-size: .88rem; color: var(--ink); background: var(--bg-2);
+  transition: border-color .2s ease, color .2s ease, background-color .2s ease;
+}
+.time-slot:hover{ border-color: var(--gold); color: var(--gold); }
+.time-slot[aria-pressed="true"]{ background: var(--gold); border-color: var(--gold); color: #1A1511; font-weight: 700; }
+.booking-hint{ font-size: .85rem; color: var(--ink-2); }
+.booking-feedback{ font-size: .92rem; margin-top: .5rem; min-height: 1.3em; }
+.booking-feedback.error{ color: #E08A7A; }
+.booking-feedback.ok{ color: var(--gold); }
+.booking-widget .btn[disabled]{ opacity: .5; pointer-events: none; }
+
 /* ---------- Galeria (bento) ---------- */
 .galeria{ background: var(--bg-2); }
 .bento{

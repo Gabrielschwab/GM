@@ -1,0 +1,8 @@
+{
+  "name": "glaycom-marlons-barbearia",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@netlify/database": "^1.0.0"
+  }
+}

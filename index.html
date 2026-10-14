@@ -76,6 +76,7 @@
       <ul>
         <li><a href="#inicio">Início</a></li>
         <li><a href="#servicos">Serviços</a></li>
+        <li><a href="#agendar">Agendar</a></li>
         <li><a href="#galeria">Galeria</a></li>
         <li><a href="#sobre">Sobre</a></li>
         <li><a href="#localizacao">Localização</a></li>
@@ -200,6 +201,54 @@
             </div>
           </div>
           <p class="price-note">Valores sujeitos a confirmação. Fale com a gente pelo WhatsApp para tirar dúvidas.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== AGENDAR ONLINE ===================== -->
+  <section class="agendar" id="agendar" aria-label="Agendar online">
+    <div class="container">
+      <div class="section-head reveal">
+        <p class="eyebrow">Agendar online</p>
+        <h2>Escolha o horário</h2>
+        <p class="prose" style="margin-top:1rem;">Agende direto por aqui — sem precisar mandar mensagem. Se preferir, o botão de WhatsApp continua disponível em qualquer seção.</p>
+      </div>
+
+      <div class="booking-widget reveal">
+        <div class="booking-grid">
+          <div>
+            <label for="bk-service">Serviço</label>
+            <select id="bk-service"><option value="">Carregando serviços...</option></select>
+          </div>
+
+          <div class="booking-row">
+            <div>
+              <label for="bk-date">Data</label>
+              <input type="date" id="bk-date">
+            </div>
+            <div>
+              <label id="bk-times-label">Horário</label>
+              <p class="booking-hint" id="bk-times-hint">Escolha o serviço e a data primeiro.</p>
+              <div class="time-grid" id="bk-times" role="group" aria-labelledby="bk-times-label"></div>
+            </div>
+          </div>
+
+          <div class="booking-row">
+            <div class="field" style="margin:0;">
+              <label for="bk-nome">Nome <span class="req">*</span></label>
+              <input type="text" id="bk-nome" autocomplete="name">
+            </div>
+            <div class="field" style="margin:0;">
+              <label for="bk-telefone">Telefone / WhatsApp <span class="req">*</span></label>
+              <input type="tel" id="bk-telefone" autocomplete="tel" placeholder="(31) 9____-____">
+            </div>
+          </div>
+
+          <div>
+            <button class="btn btn-primary" id="bk-confirmar" type="button" disabled>Confirmar agendamento</button>
+            <p class="booking-feedback" id="bk-feedback" role="status" aria-live="polite"></p>
+          </div>
         </div>
       </div>
     </div>
@@ -461,5 +510,6 @@
 
 <script>document.getElementById('year').textContent = new Date().getFullYear();</script>
 <script src="assets/js/main.js" defer></script>
+<script src="assets/js/booking.js" defer></script>
 </body>
 </html>
