@@ -124,6 +124,18 @@ function extractIncoming(payload) {
 }
 
 export default async (req) => {
+  const diagUrl = new URL(req.url);
+  if (req.method === "GET" && diagUrl.searchParams.get("token") === process.env.ADMIN_TOKEN && process.env.ADMIN_TOKEN) {
+    return Response.json({
+      has_EVOLUTION_API_URL: typeof process.env.EVOLUTION_API_URL === "string",
+      has_EVOLUTION_API_KEY: typeof process.env.EVOLUTION_API_KEY === "string",
+      has_EVOLUTION_INSTANCE: typeof process.env.EVOLUTION_INSTANCE === "string",
+      EVOLUTION_INSTANCE_value: process.env.EVOLUTION_INSTANCE || null,
+      has_ANTHROPIC_API_KEY: typeof process.env.ANTHROPIC_API_KEY === "string",
+      has_ANTHROPIC_BASE_URL: typeof process.env.ANTHROPIC_BASE_URL === "string",
+    });
+  }
+
   if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
 
   let payload;
