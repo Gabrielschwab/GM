@@ -44,8 +44,27 @@ fechamento de cada dia (ou marcar `null` pra fechado) e publicar de novo.
   um do outro.
 - Não existe cancelamento pelo site ainda; pra cancelar um agendamento, veja a seção abaixo.
 
-## Cancelar um agendamento manualmente
+## Cancelar um agendamento
+Tem um botão "Cancelar" ao lado de cada agendamento em `/admin.html`. Alternativa manual via SQL:
 ```bash
 netlify database connect --query "UPDATE appointments SET status = 'cancelled' WHERE id = 42;"
 ```
-(troque `42` pelo ID do agendamento, visível em `/admin.html`)
+(troque `42` pelo ID do agendamento)
+
+## Agente de IA no WhatsApp
+
+### Atendimento humano assume a conversa
+Se você (ou alguém da equipe) responder manualmente pelo WhatsApp numa conversa que o bot está tocando,
+ele detecta e **para de responder automaticamente** naquela conversa — pra não haver bot e humano
+respondendo ao mesmo tempo e se atropelando.
+
+- Volta a responder sozinho depois de **2 horas sem nenhuma mensagem sua** naquela conversa.
+- Pra devolver pro bot na hora, digite `/bot` na conversa (sem precisar esperar as 2 horas).
+- Isso é por conversa (por telefone do cliente) — pausar numa conversa não afeta as outras.
+
+### Trava de número de teste
+Enquanto a instância do WhatsApp estiver ligada ao seu número pessoal (não um número dedicado só pra
+barbearia), o bot só responde a números na lista `WHATSAPP_TEST_ALLOWLIST` (variável de ambiente no
+Netlify) — qualquer outro contato seu é ignorado silenciosamente, pra não confundir gente que não tem
+nada a ver com a barbearia. Quando migrar pra um número dedicado, remova essa variável (ou deixe vazia)
+pra responder todo mundo.

@@ -5,6 +5,8 @@ import { listServices, listStaff, computeAvailability, createAppointment } from 
 const MODEL = "claude-sonnet-5-5";
 const MAX_TOOL_ROUNDS = 4;
 const HISTORY_LIMIT = 20;
+const AUTO_RESUME_HOURS = 2; // depois de quanto tempo sem o atendente mexer, o bot volta a responder sozinho
+const RESUME_KEYWORD = "/bot";
 
 function centsToBRL(cents, isFrom) {
   if (cents == null) return "a combinar";
@@ -100,6 +102,7 @@ async function runTool(db, phone, name, input) {
   return { error: "Ferramenta desconhecida." };
 }
 
+/** Envia e retorna o id da mensagem enviada (pra reconhecer o próprio eco depois), ou null se falhou. */
 async function sendWhatsApp(remoteJid, text) {
   const url = `${process.env.EVOLUTION_API_URL}/message/sendText/${process.env.EVOLUTION_INSTANCE}`;
   const res = await fetch(url, {
@@ -111,18 +114,56 @@ async function sendWhatsApp(remoteJid, text) {
   });
   if (!res.ok) {
     console.error("Falha ao enviar WhatsApp:", res.status, await res.text().catch(() => ""));
+    return null;
   }
+  const data = await res.json().catch(() => null);
+  return data?.key?.id || null;
 }
 
-function extractIncoming(payload) {
+function extractEvent(payload) {
   const data = payload?.data;
-  if (!data || data.key?.fromMe) return null;
+  if (!data) return null;
   const remoteJid = data.key?.remoteJid || "";
   const phone = remoteJid.split("@")[0];
   if (!phone || remoteJid.includes("@g.us")) return null; // ignora grupos
   const text = data.message?.conversation || data.message?.extendedTextMessage?.text || "";
   const messageId = data.key?.id || null;
-  return { phone, remoteJid, text, messageId };
+  const fromMe = !!data.key?.fromMe;
+  return { phone, remoteJid, text, messageId, fromMe };
+}
+
+async function getConversationState(db, phone) {
+  const [row] = await db.sql`SELECT paused, paused_at FROM whatsapp_conversation_state WHERE phone = ${phone}`;
+  return row || { paused: false, paused_at: null };
+}
+
+async function setPaused(db, phone, paused) {
+  await db.sql`
+    INSERT INTO whatsapp_conversation_state (phone, paused, paused_at, updated_at)
+    VALUES (${phone}, ${paused}, ${paused ? new Date().toISOString() : null}, now())
+    ON CONFLICT (phone) DO UPDATE SET paused = ${paused}, paused_at = ${paused ? new Date().toISOString() : null}, updated_at = now()
+  `;
+}
+
+/** Trata uma mensagem que o PRÓPRIO número enviou (fromMe=true): eco do bot, ou o atendente humano digitando. */
+async function handleFromMe(db, event) {
+  if (event.messageId) {
+    const [echo] = await db.sql`SELECT id FROM whatsapp_messages WHERE external_id = ${event.messageId} AND role = 'assistant'`;
+    if (echo) return; // é o próprio bot, nada a fazer
+  }
+
+  // Não é o bot → o atendente humano respondeu manualmente nessa conversa.
+  if (event.text.trim().toLowerCase() === RESUME_KEYWORD) {
+    await setPaused(db, event.phone, false);
+    await db.sql`INSERT INTO whatsapp_messages (phone, role, content) VALUES (${event.phone}, 'assistant', '[sistema: bot reativado pelo atendente]')`;
+    return;
+  }
+
+  await setPaused(db, event.phone, true);
+  if (event.text) {
+    await db.sql`INSERT INTO whatsapp_messages (phone, role, content, external_id) VALUES (${event.phone}, 'assistant', ${event.text}, ${event.messageId})`
+      .catch(() => {}); // external_id pode colidir em reenvio de webhook; ignora
+  }
 }
 
 export default async (req) => {
@@ -135,34 +176,49 @@ export default async (req) => {
     return Response.json({ ok: true }); // ack mesmo em payload inválido, pra não gerar retry infinito
   }
 
-  const incoming = extractIncoming(payload);
-  if (!incoming || !incoming.text) {
+  const event = extractEvent(payload);
+  if (!event || !event.text) {
     return Response.json({ ok: true, skipped: true });
   }
 
   // Trava de segurança: enquanto em teste num número pessoal, só responde a um número permitido
   // (evita o bot responder contatos reais do dono do número com conteúdo de barbearia).
   const allowlist = (process.env.WHATSAPP_TEST_ALLOWLIST || "").split(",").map((s) => s.trim()).filter(Boolean);
-  if (allowlist.length && !allowlist.includes(incoming.phone)) {
+  if (allowlist.length && !allowlist.includes(event.phone)) {
     return Response.json({ ok: true, skipped: true, reason: "not_in_test_allowlist" });
   }
 
   const db = getDatabase();
 
+  if (event.fromMe) {
+    await handleFromMe(db, event);
+    return Response.json({ ok: true });
+  }
+
   // Idempotência: se já processamos esse message id, não reprocessa (Evolution pode reenviar o webhook).
-  if (incoming.messageId) {
+  if (event.messageId) {
     try {
-      await db.sql`INSERT INTO whatsapp_messages (phone, role, content, external_id) VALUES (${incoming.phone}, 'user', ${incoming.text}, ${incoming.messageId})`;
+      await db.sql`INSERT INTO whatsapp_messages (phone, role, content, external_id) VALUES (${event.phone}, 'user', ${event.text}, ${event.messageId})`;
     } catch (err) {
       return Response.json({ ok: true, duplicate: true });
     }
   } else {
-    await db.sql`INSERT INTO whatsapp_messages (phone, role, content) VALUES (${incoming.phone}, 'user', ${incoming.text})`;
+    await db.sql`INSERT INTO whatsapp_messages (phone, role, content) VALUES (${event.phone}, 'user', ${event.text})`;
+  }
+
+  // Se o atendente assumiu a conversa recentemente, o bot fica quieto (o humano está respondendo).
+  const state = await getConversationState(db, event.phone);
+  if (state.paused) {
+    const hoursSincePause = (Date.now() - new Date(state.paused_at).getTime()) / 3_600_000;
+    if (hoursSincePause < AUTO_RESUME_HOURS) {
+      return Response.json({ ok: true, skipped: true, reason: "paused_for_human" });
+    }
+    await setPaused(db, event.phone, false); // timeout — bot retoma sozinho
   }
 
   const history = await db.sql`
     SELECT role, content FROM whatsapp_messages
-    WHERE phone = ${incoming.phone}
+    WHERE phone = ${event.phone}
     ORDER BY created_at DESC
     LIMIT ${HISTORY_LIMIT}
   `;
@@ -191,7 +247,7 @@ export default async (req) => {
       messages.push({ role: "assistant", content: response.content });
       const toolResults = [];
       for (const use of toolUses) {
-        const result = await runTool(db, incoming.phone, use.name, use.input);
+        const result = await runTool(db, event.phone, use.name, use.input);
         toolResults.push({ type: "tool_result", tool_use_id: use.id, content: JSON.stringify(result) });
       }
       messages.push({ role: "user", content: toolResults });
@@ -203,8 +259,9 @@ export default async (req) => {
 
   if (!finalText) finalText = "Desculpa, não entendi direito. Pode reformular?";
 
-  await db.sql`INSERT INTO whatsapp_messages (phone, role, content) VALUES (${incoming.phone}, 'assistant', ${finalText})`;
-  await sendWhatsApp(incoming.remoteJid, finalText);
+  const sentId = await sendWhatsApp(event.remoteJid, finalText);
+  await db.sql`INSERT INTO whatsapp_messages (phone, role, content, external_id) VALUES (${event.phone}, 'assistant', ${finalText}, ${sentId})`
+    .catch(() => db.sql`INSERT INTO whatsapp_messages (phone, role, content) VALUES (${event.phone}, 'assistant', ${finalText})`);
 
   return Response.json({ ok: true });
 };
