@@ -161,8 +161,11 @@ async function handleFromMe(db, event) {
 
   await setPaused(db, event.phone, true);
   if (event.text) {
-    await db.sql`INSERT INTO whatsapp_messages (phone, role, content, external_id) VALUES (${event.phone}, 'assistant', ${event.text}, ${event.messageId})`
-      .catch(() => {}); // external_id pode colidir em reenvio de webhook; ignora
+    try {
+      await db.sql`INSERT INTO whatsapp_messages (phone, role, content, external_id) VALUES (${event.phone}, 'assistant', ${event.text}, ${event.messageId})`;
+    } catch {
+      // external_id pode colidir em reenvio de webhook; ignora
+    }
   }
 }
 
@@ -260,8 +263,11 @@ export default async (req) => {
   if (!finalText) finalText = "Desculpa, não entendi direito. Pode reformular?";
 
   const sentId = await sendWhatsApp(event.remoteJid, finalText);
-  await db.sql`INSERT INTO whatsapp_messages (phone, role, content, external_id) VALUES (${event.phone}, 'assistant', ${finalText}, ${sentId})`
-    .catch(() => db.sql`INSERT INTO whatsapp_messages (phone, role, content) VALUES (${event.phone}, 'assistant', ${finalText})`);
+  try {
+    await db.sql`INSERT INTO whatsapp_messages (phone, role, content, external_id) VALUES (${event.phone}, 'assistant', ${finalText}, ${sentId})`;
+  } catch {
+    await db.sql`INSERT INTO whatsapp_messages (phone, role, content) VALUES (${event.phone}, 'assistant', ${finalText})`;
+  }
 
   return Response.json({ ok: true });
 };
