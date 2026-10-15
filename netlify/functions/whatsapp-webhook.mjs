@@ -138,6 +138,13 @@ export default async (req) => {
     return Response.json({ ok: true, skipped: true });
   }
 
+  // Trava de segurança: enquanto em teste num número pessoal, só responde a um número permitido
+  // (evita o bot responder contatos reais do dono do número com conteúdo de barbearia).
+  const allowlist = (process.env.WHATSAPP_TEST_ALLOWLIST || "").split(",").map((s) => s.trim()).filter(Boolean);
+  if (allowlist.length && !allowlist.includes(incoming.phone)) {
+    return Response.json({ ok: true, skipped: true, reason: "not_in_test_allowlist" });
+  }
+
   const db = getDatabase();
 
   // Idempotência: se já processamos esse message id, não reprocessa (Evolution pode reenviar o webhook).
