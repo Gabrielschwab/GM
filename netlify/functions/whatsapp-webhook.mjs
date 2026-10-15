@@ -100,12 +100,14 @@ async function runTool(db, phone, name, input) {
   return { error: "Ferramenta desconhecida." };
 }
 
-async function sendWhatsApp(phone, text) {
+async function sendWhatsApp(remoteJid, text) {
   const url = `${process.env.EVOLUTION_API_URL}/message/sendText/${process.env.EVOLUTION_INSTANCE}`;
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json", apikey: process.env.EVOLUTION_API_KEY },
-    body: JSON.stringify({ number: phone, text }),
+    // Usa o JID completo (inclui @lid/@s.whatsapp.net) — a Evolution API não aceita um número "pelado"
+    // para contatos identificados por @lid (o Linked ID de privacidade do WhatsApp).
+    body: JSON.stringify({ number: remoteJid, text }),
   });
   if (!res.ok) {
     console.error("Falha ao enviar WhatsApp:", res.status, await res.text().catch(() => ""));
@@ -120,22 +122,10 @@ function extractIncoming(payload) {
   if (!phone || remoteJid.includes("@g.us")) return null; // ignora grupos
   const text = data.message?.conversation || data.message?.extendedTextMessage?.text || "";
   const messageId = data.key?.id || null;
-  return { phone, text, messageId };
+  return { phone, remoteJid, text, messageId };
 }
 
 export default async (req) => {
-  const diagUrl = new URL(req.url);
-  if (req.method === "GET" && diagUrl.searchParams.get("token") === process.env.ADMIN_TOKEN && process.env.ADMIN_TOKEN) {
-    return Response.json({
-      has_EVOLUTION_API_URL: typeof process.env.EVOLUTION_API_URL === "string",
-      has_EVOLUTION_API_KEY: typeof process.env.EVOLUTION_API_KEY === "string",
-      has_EVOLUTION_INSTANCE: typeof process.env.EVOLUTION_INSTANCE === "string",
-      EVOLUTION_INSTANCE_value: process.env.EVOLUTION_INSTANCE || null,
-      has_ANTHROPIC_API_KEY: typeof process.env.ANTHROPIC_API_KEY === "string",
-      has_ANTHROPIC_BASE_URL: typeof process.env.ANTHROPIC_BASE_URL === "string",
-    });
-  }
-
   if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
 
   let payload;
@@ -214,7 +204,7 @@ export default async (req) => {
   if (!finalText) finalText = "Desculpa, não entendi direito. Pode reformular?";
 
   await db.sql`INSERT INTO whatsapp_messages (phone, role, content) VALUES (${incoming.phone}, 'assistant', ${finalText})`;
-  await sendWhatsApp(incoming.phone, finalText);
+  await sendWhatsApp(incoming.remoteJid, finalText);
 
   return Response.json({ ok: true });
 };
